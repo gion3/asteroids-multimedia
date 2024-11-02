@@ -1,3 +1,10 @@
+/*
+TODO:
+-maxim 3 proiectile la un mom dat
+
+*/
+
+
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
 
@@ -37,6 +44,53 @@ class Player{
     }
 }
 
+class Projectile{
+    constructor({position,vel}){
+        this.position = position
+        this.vel = vel
+        this.rad = 5
+    }
+    draw(){
+        ctx.beginPath()
+        ctx.arc(this.position.x,this.position.y, this.rad, 0, Math.PI * 2,false)
+        ctx.closePath()
+        ctx.fillStyle = 'white'
+        ctx.fill()
+    }
+    update(){
+        this.draw()
+        this.position.x += this.vel.x
+        this.position.y += this.vel.y
+    }
+}
+
+class Asteroid{
+    constructor({position,vel,rad}){
+        this.position = position
+        this.vel = vel
+        //const sizeMap = {1:25, 2:50, 3:75, 4:100}
+        this.rad = rad
+    }
+    draw(){
+        ctx.beginPath()
+        ctx.arc(this.position.x,this.position.y, this.rad, 0, Math.PI * 2,false)
+        ctx.closePath()
+        ctx.strokeStyle = 'white'
+        ctx.stroke()
+    }
+    update(){
+        this.draw()
+        this.position.x += this.vel.x
+        this.position.y += this.vel.y
+    }
+}
+
+const ast = new Asteroid({
+    position: {x:100,y:100},
+    vel:{x:0, y:0}
+})
+
+
 const player = new Player({
     position: {x:canvas.width/2,y:canvas.height/2},
     vel: {x:0,y:0},
@@ -67,17 +121,96 @@ const keys = {
     },
 }
 
-const ROTATION_SPEED = 2
-const MOVE_SPEED = 1.5
+const ROTATION_SPEED = 3
+const MOVE_SPEED = 2
+const PROJECTILE_SPEED = 3
+const ASTEROID_FREQ = 1
+
+const asteroids = []
+const projectiles = []
+
+
+window.setInterval(() =>{
+    const index = Math.floor(Math.random() * 4)
+    const sizeArr = [25,50,75,100]
+    let x,y
+    let vx,vy
+    let rad = sizeArr[Math.floor(Math.random() * 4)]
+    //alegem random din ce parte a ecranului vin asteroizii
+    switch(index){
+        case 0: //partea stanga a ecranului
+            x = 0 - rad
+            y = Math.random() * canvas.Height
+            vx = 1
+            vy = 0
+            break
+        case 1: //partea de jos a ecranului
+            x = Math.random() * canvas.width
+            y = canvas.height + rad
+            vx = 1
+            vy = -1
+            break
+        case 2: //partea dreapta a ecranului
+            x = canvas.width + rad
+            y = Math.random() * canvas.Height
+            vx = -1
+            vy = 0
+            break
+        case 3: //partea de sus a ecranului
+            x = Math.random() * canvas.width
+            y = 0 - rad
+            vx = 0
+            vy = 1
+            break
+    }
+
+    asteroids.push(new Asteroid({
+        position:{
+            x:x,
+            y:y
+        },
+        vel:{
+            x:vx,
+            y:vy
+        },
+        rad
+    }))
+}, 1000 / ASTEROID_FREQ)
+
 
 function animate(){
     window.requestAnimationFrame(animate)
     ctx.fillStyle = 'black'
     ctx.fillRect(0,0,canvas.width,canvas.height)
     player.update()
+    ast.update()
 
-    // player.vel.x = 0
-    // player.vel.y = 0
+    for(let i = projectiles.length -1 ; i>= 0; i--){
+        const projectile = projectiles[i]
+        projectile.update()
+        //stergere proiectile odata ce ies din ecran
+        if(projectile.position.x + projectile.rad < 0 ||
+            projectile.position.x - projectile.rad > canvas.width ||
+            projectile.position.y - projectile.rad > canvas.height ||
+            projectile.position.y + projectile.rad < 0
+        ){
+            projectiles.splice(i, 1)
+        }
+    }
+
+    for(let i = asteroids.length -1 ; i>= 0; i--){
+        const asteroid = asteroids[i]
+        asteroid.update()
+        //stergere asteroizi odata ce ies din ecran
+        if(asteroid.position.x + asteroid.rad < 0 ||
+            asteroid.position.x - asteroid.rad > canvas.width ||
+            asteroid.position.y - asteroid.rad > canvas.height ||
+            asteroid.position.y + asteroid.rad < 0
+        ){
+            asteroids.splice(i, 1)
+        }
+    }
+
     if(keys.aRight.pressed) {
         player.vel.x = 1 * MOVE_SPEED
     } else if(!keys.aRight.pressed){
@@ -128,7 +261,16 @@ window.addEventListener('keydown', (event) =>{
             keys.z.pressed = true
             break
         case 'KeyX':
-            keys.x.pressed = true
+            projectiles.push(new Projectile({
+                position: {
+                    x : player.position.x + Math.cos(player.rotation) * 30,
+                    y : player.position.y + Math.sin(player.rotation) * 30
+                },
+                vel:{
+                    x: Math.cos(player.rotation) * PROJECTILE_SPEED,
+                    y: Math.sin(player.rotation) * PROJECTILE_SPEED
+                }
+            }))
             break
         case 'KeyC':
             keys.c.pressed = true
