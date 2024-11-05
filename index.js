@@ -1,6 +1,13 @@
 /*
 TODO:
--maxim 3 proiectile la un mom dat
+-asteroid collision
+-life counter
+-asteroid and ship collision
+-scoring system: reaching a certain number of points gains one life
+-restart the game after every 'death'
+-cam atat...
+TBD:
+-does a hit restore one ammo or not?
 
 */
 
@@ -68,20 +75,59 @@ class Asteroid{
     constructor({position,vel,rad}){
         this.position = position
         this.vel = vel
-        //const sizeMap = {1:25, 2:50, 3:75, 4:100}
         this.rad = rad
+        this.setSize()
+    }
+    setSize(){
+        switch(this.rad){
+            case 25:
+                this.sizeLevel = 1
+                this.color = 'yellow'
+                break
+            case 50:
+                this.sizeLevel = 2
+                this.color = 'orange'
+                break
+            case 75:
+                this.sizeLevel = 3
+                this.color = 'brown'
+                break
+            case 100:
+                this.sizeLevel = 4
+                this.color = 'red'
+                break
+        }
     }
     draw(){
         ctx.beginPath()
         ctx.arc(this.position.x,this.position.y, this.rad, 0, Math.PI * 2,false)
         ctx.closePath()
-        ctx.strokeStyle = 'white'
+        ctx.strokeStyle = this.color
         ctx.stroke()
+
+        //colorare si fill numar 1-4 in asteroid in functie de dimensiune
+        ctx.fillStyle = this.color
+        ctx.font = this.rad + 'px Arial'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(this.sizeLevel, this.position.x, this.position.y)
+
     }
     update(){
         this.draw()
         this.position.x += this.vel.x
         this.position.y += this.vel.y
+    }
+    hit(){
+        if(this.sizeLevel > 1){
+            this.sizeLevel -= 1
+            this.rad -= 25
+            this.setSize()
+        }
+        else{
+            return true
+        }
+        return false
     }
 }
 
@@ -121,10 +167,12 @@ const keys = {
     },
 }
 
-const ROTATION_SPEED = 3
-const MOVE_SPEED = 2
+const PLAYER_ROTATION_SPEED = 3
+const PLAYER_MOVE_SPEED = 2
 const PROJECTILE_SPEED = 3
 const ASTEROID_FREQ = 1
+const ASTEROID_MAX_SPEED = 1
+const ASTEROID_MIN_SPEED = 0.4
 
 const asteroids = []
 const projectiles = []
@@ -136,31 +184,32 @@ window.setInterval(() =>{
     let x,y
     let vx,vy
     let rad = sizeArr[Math.floor(Math.random() * 4)]
+    let speed = Math.random() * (ASTEROID_MAX_SPEED - ASTEROID_MIN_SPEED) + ASTEROID_MIN_SPEED
     //alegem random din ce parte a ecranului vin asteroizii
     switch(index){
         case 0: //partea stanga a ecranului
             x = 0 - rad
-            y = Math.random() * canvas.Height
-            vx = 1
+            y = Math.random() * canvas.height
+            vx = speed
             vy = 0
             break
         case 1: //partea de jos a ecranului
             x = Math.random() * canvas.width
             y = canvas.height + rad
-            vx = 1
-            vy = -1
+            vx = 0
+            vy = -1 * speed
             break
         case 2: //partea dreapta a ecranului
             x = canvas.width + rad
-            y = Math.random() * canvas.Height
-            vx = -1
+            y = Math.random() * canvas.height
+            vx = -1 * speed
             vy = 0
             break
         case 3: //partea de sus a ecranului
             x = Math.random() * canvas.width
             y = 0 - rad
             vx = 0
-            vy = 1
+            vy = speed
             break
     }
 
@@ -177,13 +226,35 @@ window.setInterval(() =>{
     }))
 }, 1000 / ASTEROID_FREQ)
 
+function circleCollision(c1,c2){
+    const xDif = c2.position.x - c1.position.x
+    const yDif = c2.position.y - c1.position.y
+
+    const dist = Math.sqrt(xDif * xDif + yDif * yDif)
+
+    if (dist <= c1.rad + c2.rad){
+        return true
+    }
+    return false
+}
 
 function animate(){
     window.requestAnimationFrame(animate)
     ctx.fillStyle = 'black'
     ctx.fillRect(0,0,canvas.width,canvas.height)
     player.update()
-    ast.update()
+
+    //ammo counter
+    ctx.fillStyle = 'white'
+    ctx.font = '24px Arial'
+    ctx.textAlign = 'right'
+    ctx.fillText('AMMO: ' + (3 - projectiles.length), canvas.width - 100, canvas.height - 100)
+
+    //lives counter
+    ctx.fillStyle = 'white'
+    ctx.font = '24px Arial'
+    ctx.textAlign = 'middle'
+    ctx.fillText('LIVES: ..........', canvas.width / 2, 50)
 
     for(let i = projectiles.length -1 ; i>= 0; i--){
         const projectile = projectiles[i]
@@ -209,34 +280,45 @@ function animate(){
         ){
             asteroids.splice(i, 1)
         }
+
+        for(let j = projectiles.length -1 ; j>= 0; j--){
+            const projectile = projectiles[j]
+            if (circleCollision(asteroid,projectile)){
+                projectiles.splice(j,1)
+                if(asteroid.hit()){
+                    asteroids.splice(i,1)
+                }
+            }
+        }
     }
 
     if(keys.aRight.pressed) {
-        player.vel.x = 1 * MOVE_SPEED
+        player.vel.x = 1 * PLAYER_MOVE_SPEED
     } else if(!keys.aRight.pressed){
         player.vel.x *= 0.99
     }
     if(keys.aLeft.pressed){
-        player.vel.x = -1 * MOVE_SPEED
+        player.vel.x = -1 * PLAYER_MOVE_SPEED
     }
     else if(!keys.aLeft.pressed){
         player.vel.x *= 0.99
     }
     if(keys.aUp.pressed){
-        player.vel.y = -1 * MOVE_SPEED
+        player.vel.y = -1 * PLAYER_MOVE_SPEED
     }
     else if (!keys.aUp.pressed){
         player.vel.y *= 0.99
     }
     if(keys.aDown.pressed) {
-        player.vel.y = 1 * MOVE_SPEED
+        player.vel.y = 1 * PLAYER_MOVE_SPEED
     }
     else if (!keys.aDown.pressed){
         player.vel.y *= 0.99
     }
 
-    if(keys.c.pressed) player.rotation += 0.01 * ROTATION_SPEED
-    if(keys.z.pressed) player.rotation -= 0.01 * ROTATION_SPEED
+    if(keys.c.pressed) player.rotation += 0.01 * PLAYER_ROTATION_SPEED
+    if(keys.z.pressed) player.rotation -= 0.01 * PLAYER_ROTATION_SPEED
+
 }
 animate()
 
@@ -261,16 +343,19 @@ window.addEventListener('keydown', (event) =>{
             keys.z.pressed = true
             break
         case 'KeyX':
-            projectiles.push(new Projectile({
-                position: {
-                    x : player.position.x + Math.cos(player.rotation) * 30,
-                    y : player.position.y + Math.sin(player.rotation) * 30
-                },
-                vel:{
-                    x: Math.cos(player.rotation) * PROJECTILE_SPEED,
-                    y: Math.sin(player.rotation) * PROJECTILE_SPEED
-                }
-            }))
+            //conditie: maxim 3 rachete simultan
+            if(projectiles.length < 3){
+                projectiles.push(new Projectile({
+                    position: {
+                        x : player.position.x + Math.cos(player.rotation) * 30,
+                        y : player.position.y + Math.sin(player.rotation) * 30
+                    },
+                    vel:{
+                        x: Math.cos(player.rotation) * PROJECTILE_SPEED,
+                        y: Math.sin(player.rotation) * PROJECTILE_SPEED
+                    }
+                }))
+            }
             break
         case 'KeyC':
             keys.c.pressed = true
