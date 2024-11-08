@@ -307,7 +307,6 @@ function circleTriangleCollision(circle, triangle) {
 
 function animate(){
 
-
     window.requestAnimationFrame(animate)
     ctx.fillStyle = 'black'
     ctx.fillRect(0,0,canvas.width,canvas.height)
