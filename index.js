@@ -49,6 +49,26 @@ class Player{
         this.position.x += this.vel.x
         this.position.y += this.vel.y
     }
+    // functie ce ne returneaza un array cu varfurile triunghiului jucatorului
+    getTrianglePoints(){
+        const cos = Math.cos(this.rotation)
+        const sin = Math.sin(this.rotation)
+
+        return [
+            {
+                x: this.position.x + cos * 30 - sin * 0,
+                y: this.position.y + sin * 30 + cos * 0,
+            },
+            {
+                x: this.position.x + cos * -10 - sin * 10,
+                y: this.position.y + sin * -10 + cos * 10,
+            },
+            {
+                x: this.position.x + cos * -10 - sin * -10,
+                y: this.position.y + sin * -10 + cos * -10,
+            },
+        ]
+    }
 }
 
 class Projectile{
@@ -177,6 +197,7 @@ const ASTEROID_MIN_SPEED = 0.4
 const asteroids = []
 const projectiles = []
 
+let lives = 3
 
 window.setInterval(() =>{
     const index = Math.floor(Math.random() * 4)
@@ -238,7 +259,55 @@ function circleCollision(c1,c2){
     return false
 }
 
+function circleTriangleCollision(circle, triangle) {
+    // verificare coliziune intre cerc(asteroid) si triunghi (player)
+    for (let i = 0; i < 3; i++) {
+      let start = triangle[i]
+      let end = triangle[(i + 1) % 3]
+  
+      let dx = end.x - start.x
+      let dy = end.y - start.y
+      let length = Math.sqrt(dx * dx + dy * dy)
+  
+      let dot =
+        ((circle.position.x - start.x) * dx +
+          (circle.position.y - start.y) * dy) /
+        Math.pow(length, 2)
+  
+      let closestX = start.x + dot * dx
+      let closestY = start.y + dot * dy
+  
+      if (!isPointOnLineSegment(closestX, closestY, start, end)) {
+        closestX = closestX < start.x ? start.x : end.x
+        closestY = closestY < start.y ? start.y : end.y
+      }
+  
+      dx = closestX - circle.position.x
+      dy = closestY - circle.position.y
+  
+      let distance = Math.sqrt(dx * dx + dy * dy)
+  
+      if (distance <= circle.rad) {
+        return true
+      }
+    }
+  
+    return false
+  }
+  
+  //functie ce verifica daca un punct apartine unei drepte
+  function isPointOnLineSegment(x, y, start, end) {
+    return (
+      x >= Math.min(start.x, end.x) &&
+      x <= Math.max(start.x, end.x) &&
+      y >= Math.min(start.y, end.y) &&
+      y <= Math.max(start.y, end.y)
+    )
+  }
+
 function animate(){
+
+
     window.requestAnimationFrame(animate)
     ctx.fillStyle = 'black'
     ctx.fillRect(0,0,canvas.width,canvas.height)
@@ -251,10 +320,11 @@ function animate(){
     ctx.fillText('AMMO: ' + (3 - projectiles.length), canvas.width - 100, canvas.height - 100)
 
     //lives counter
+
     ctx.fillStyle = 'white'
     ctx.font = '24px Arial'
     ctx.textAlign = 'middle'
-    ctx.fillText('LIVES: ..........', canvas.width / 2, 50)
+    ctx.fillText('LIVES: ' + lives, canvas.width / 2, 50)
 
     for(let i = projectiles.length -1 ; i>= 0; i--){
         const projectile = projectiles[i]
@@ -272,6 +342,11 @@ function animate(){
     for(let i = asteroids.length -1 ; i>= 0; i--){
         const asteroid = asteroids[i]
         asteroid.update()
+
+        if(circleTriangleCollision(asteroid,player.getTrianglePoints())){
+            console.log('game over')
+            lives -= 1
+        }
         //stergere asteroizi odata ce ies din ecran
         if(asteroid.position.x + asteroid.rad < 0 ||
             asteroid.position.x - asteroid.rad > canvas.width ||
@@ -324,10 +399,8 @@ animate()
 
 
 window.addEventListener('keydown', (event) =>{
-    console.log(event)
     switch(event.code){
         case 'ArrowUp':
-            console.log('arrow up pressed')
             keys.aUp.pressed = true
             break
         case 'ArrowLeft':
