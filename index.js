@@ -1,17 +1,3 @@
-/*
-TODO:
--asteroid collision
--life counter
--asteroid and ship collision
--scoring system: reaching a certain number of points gains one life
--restart the game after every 'death'
--cam atat...
-TBD:
--does a hit restore one ammo or not?
-
-*/
-
-
 const canvas = document.querySelector('canvas')
 const ctx = canvas.getContext('2d')
 
@@ -26,10 +12,15 @@ class Player{
         this.position = position
         this.vel = vel
         this.rotation = 0
+        this.isInvulnerable = false
+        this.opacity = 1
     }
     draw(){
         //rotirea jucatorului
         ctx.save()
+
+        ctx.globalAlpha = this.opacity 
+
         ctx.translate(this.position.x,this.position.y)
         ctx.rotate(this.rotation)
         ctx.translate(-this.position.x, -this.position.y)
@@ -43,6 +34,9 @@ class Player{
         ctx.stroke()
 
         ctx.restore()
+
+        ctx.globalAlpha = 1
+        
     }
     update(){
         this.draw()
@@ -163,6 +157,7 @@ const player = new Player({
 })
 player.draw()
 
+
 const keys = {
     aUp:{
         pressed: false
@@ -190,14 +185,20 @@ const keys = {
 const PLAYER_ROTATION_SPEED = 3
 const PLAYER_MOVE_SPEED = 2
 const PROJECTILE_SPEED = 3
-const ASTEROID_FREQ = 1
+const ASTEROID_FREQ = 0.5
 const ASTEROID_MAX_SPEED = 1
 const ASTEROID_MIN_SPEED = 0.4
+const SCORE_TO_LIFE = 100
+const ASTEROID_SCORE = 10
 
 const asteroids = []
 const projectiles = []
 
 let lives = 3
+let gameOver = false
+let animationId
+let isInvulnerable = false
+let score = 0
 
 window.setInterval(() =>{
     const index = Math.floor(Math.random() * 4)
@@ -307,7 +308,7 @@ function circleTriangleCollision(circle, triangle) {
 
 function animate(){
 
-    window.requestAnimationFrame(animate)
+    animationId = window.requestAnimationFrame(animate)
     ctx.fillStyle = 'black'
     ctx.fillRect(0,0,canvas.width,canvas.height)
     player.update()
@@ -319,11 +320,16 @@ function animate(){
     ctx.fillText('AMMO: ' + (3 - projectiles.length), canvas.width - 100, canvas.height - 100)
 
     //lives counter
-
     ctx.fillStyle = 'white'
     ctx.font = '24px Arial'
     ctx.textAlign = 'middle'
     ctx.fillText('LIVES: ' + lives, canvas.width / 2, 50)
+
+    //score counter
+    ctx.fillStyle = 'white'
+    ctx.font = '32px Arial'
+    ctx.textAlign = 'middle'
+    ctx.fillText('SCORE: ' + score, canvas.width / 2, canvas.height - 100 )
 
     for(let i = projectiles.length -1 ; i>= 0; i--){
         const projectile = projectiles[i]
@@ -338,14 +344,20 @@ function animate(){
         }
     }
 
+    for (let i = 0; i < asteroids.length; i++) {
+        for (let j = i + 1; j < asteroids.length; j++) {
+            if (circleCollision(asteroids[i], asteroids[j])) {
+                // coliziune asteroizi
+                [asteroids[i].vel.x, asteroids[j].vel.x] = [asteroids[j].vel.x, asteroids[i].vel.x];
+                [asteroids[i].vel.y, asteroids[j].vel.y] = [asteroids[j].vel.y, asteroids[i].vel.y];
+            }
+        }
+    }
+
     for(let i = asteroids.length -1 ; i>= 0; i--){
         const asteroid = asteroids[i]
         asteroid.update()
 
-        if(circleTriangleCollision(asteroid,player.getTrianglePoints())){
-            console.log('game over')
-            lives -= 1
-        }
         //stergere asteroizi odata ce ies din ecran
         if(asteroid.position.x + asteroid.rad < 0 ||
             asteroid.position.x - asteroid.rad > canvas.width ||
@@ -360,10 +372,41 @@ function animate(){
             if (circleCollision(asteroid,projectile)){
                 projectiles.splice(j,1)
                 if(asteroid.hit()){
+                    score += ASTEROID_SCORE
+                    if(score % SCORE_TO_LIFE === 0){
+                        lives += 1
+                    }
                     asteroids.splice(i,1)
                 }
             }
         }
+        player.isInvulnerable = isInvulnerable
+        if (circleTriangleCollision(asteroid, player.getTrianglePoints())) {
+            if(!player.isInvulnerable){
+                lives -= 1;
+                player.position = { x: canvas.width / 2, y: canvas.height / 2 };
+                player.vel = { x: 0, y: 0 };
+                isInvulnerable = true;
+                player.opacity = 0.3;
+                setTimeout(() => {isInvulnerable = false;
+                    player.opacity = 1;
+                }, 3000);
+            }
+            
+            // if (lives <= 0 && !gameOver) {
+            //     gameOver = true;
+            //     cancelAnimationFrame(animationId);
+            //     alert("Game over!");
+            //     document.location.reload();
+                
+            // } 
+            if (lives <= 0 && !gameOver) {
+                const name = prompt('Game over! Enter your name: ');
+                updateHighScores(name, score);
+                alert("High Scores:\n" + displayHighScores());
+                document.location.reload();
+            }
+        } 
     }
 
     if(keys.aRight.pressed) {
@@ -395,6 +438,26 @@ function animate(){
 
 }
 animate()
+
+function updateHighScores(name, score) {
+    let highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+    highScores.push({ name, score });
+    highScores.sort((a, b) => b.score - a.score);
+    highScores = highScores.slice(0, 5); // Păstrați doar top 5
+    localStorage.setItem('highScores', JSON.stringify(highScores));
+}
+
+function displayHighScores() {
+    const highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+    if (highScores.length === 0) {
+        return "No high scores yet!";
+    }
+
+    // Format the scores as a numbered list
+    return highScores
+        .map((entry, index) => `${index + 1}. ${entry.name} - ${entry.score}`)
+        .join("\n");
+}
 
 
 window.addEventListener('keydown', (event) =>{
