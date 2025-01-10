@@ -24,6 +24,7 @@ class Player{
         ctx.translate(this.position.x,this.position.y)
         ctx.rotate(this.rotation)
         ctx.translate(-this.position.x, -this.position.y)
+
         //desenarea jucatorului in forma de triunghi
         ctx.beginPath()
         ctx.moveTo(this.position.x + 30,this.position.y)
@@ -113,6 +114,7 @@ class Asteroid{
         }
     }
     draw(){
+        //desenam asteroidul
         ctx.beginPath()
         ctx.arc(this.position.x,this.position.y, this.rad, 0, Math.PI * 2,false)
         ctx.closePath()
@@ -133,6 +135,7 @@ class Asteroid{
         this.position.y += this.vel.y
     }
     hit(){
+        //scadem nivelul asteroidului la fiecare hit
         if(this.sizeLevel > 1){
             this.sizeLevel -= 1
             this.rad -= 25
@@ -182,6 +185,7 @@ const keys = {
     },
 }
 
+//constante pentru modificarea optiunilor jocului
 const PLAYER_ROTATION_SPEED = 3
 const PLAYER_MOVE_SPEED = 2
 const PROJECTILE_SPEED = 3
@@ -194,6 +198,7 @@ const ASTEROID_SCORE = 10
 const asteroids = []
 const projectiles = []
 
+//variabile aferente jocului
 let lives = 3
 let gameOver = false
 let animationId
@@ -248,6 +253,7 @@ window.setInterval(() =>{
     }))
 }, 1000 / ASTEROID_FREQ)
 
+//coliziune intre 2 asteroizi
 function circleCollision(c1,c2){
     const xDif = c2.position.x - c1.position.x
     const yDif = c2.position.y - c1.position.y
@@ -347,7 +353,7 @@ function animate(){
     for (let i = 0; i < asteroids.length; i++) {
         for (let j = i + 1; j < asteroids.length; j++) {
             if (circleCollision(asteroids[i], asteroids[j])) {
-                // coliziune asteroizi
+                // la coliziunile dintre asteroizi schimbam directiile de miscare ale acestora
                 [asteroids[i].vel.x, asteroids[j].vel.x] = [asteroids[j].vel.x, asteroids[i].vel.x];
                 [asteroids[i].vel.y, asteroids[j].vel.y] = [asteroids[j].vel.y, asteroids[i].vel.y];
             }
@@ -366,7 +372,7 @@ function animate(){
         ){
             asteroids.splice(i, 1)
         }
-
+        //coliziune intre proiectile si asteroizi
         for(let j = projectiles.length -1 ; j>= 0; j--){
             const projectile = projectiles[j]
             if (circleCollision(asteroid,projectile)){
@@ -381,34 +387,31 @@ function animate(){
             }
         }
         player.isInvulnerable = isInvulnerable
+        //coliziune intre jucator si asteroizi
         if (circleTriangleCollision(asteroid, player.getTrianglePoints())) {
+
             if(!player.isInvulnerable){
-                lives -= 1;
-                player.position = { x: canvas.width / 2, y: canvas.height / 2 };
-                player.vel = { x: 0, y: 0 };
-                isInvulnerable = true;
-                player.opacity = 0.3;
-                setTimeout(() => {isInvulnerable = false;
-                    player.opacity = 1;
-                }, 3000);
+                lives -= 1
+                player.position = { x: canvas.width / 2, y: canvas.height / 2 }
+                player.vel = { x: 0, y: 0 }
+                isInvulnerable = true
+                player.opacity = 0.3
+                setTimeout(() => {isInvulnerable = false
+                    player.opacity = 1
+                }, 3000)
             }
-            
-            // if (lives <= 0 && !gameOver) {
-            //     gameOver = true;
-            //     cancelAnimationFrame(animationId);
-            //     alert("Game over!");
-            //     document.location.reload();
-                
-            // } 
             if (lives <= 0 && !gameOver) {
-                const name = prompt('Game over! Enter your name: ');
-                updateHighScores(name, score);
-                alert("High Scores:\n" + displayHighScores());
-                document.location.reload();
+                const name = prompt('Game over! Enter your name: ')
+                updateHighScores(name, score)
+                gameOver = true
+                alert("High Scores:\n" + displayHighScores())
+                document.location.reload()
             }
         } 
     }
 
+
+    //logica miscare jucator
     if(keys.aRight.pressed) {
         player.vel.x = 1 * PLAYER_MOVE_SPEED
     } else if(!keys.aRight.pressed){
@@ -439,24 +442,25 @@ function animate(){
 }
 animate()
 
+//salvam highscore-urile in local storage in format JSON
 function updateHighScores(name, score) {
-    let highScores = JSON.parse(localStorage.getItem('highScores')) || [];
-    highScores.push({ name, score });
-    highScores.sort((a, b) => b.score - a.score);
-    highScores = highScores.slice(0, 5); // Păstrați doar top 5
-    localStorage.setItem('highScores', JSON.stringify(highScores));
+    let highScores = JSON.parse(localStorage.getItem('highScores'))
+    highScores.push({ name, score })
+    highScores.sort((a, b) => b.score - a.score)
+    highScores = highScores.slice(0, 5) //pastram doar primii 5
+    localStorage.setItem('highScores', JSON.stringify(highScores))
 }
 
+//afisare scoruri
 function displayHighScores() {
-    const highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+    const highScores = JSON.parse(localStorage.getItem('highScores')) 
     if (highScores.length === 0) {
-        return "No high scores yet!";
+        return "No high scores yet!"
     }
-
-    // Format the scores as a numbered list
+    // formatam scorurile pentru a le afisa
     return highScores
         .map((entry, index) => `${index + 1}. ${entry.name} - ${entry.score}`)
-        .join("\n");
+        .join("\n")
 }
 
 
